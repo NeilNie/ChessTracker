@@ -1,8 +1,8 @@
 import cv2
-import numpy
+import numpy as np
 from detect_board import *
 
-file_path = "/Users/neilnie/Downloads/chess-3.jpg"
+file_path = "./imgs/chess-3.jpg"
 
 image = cv2.cvtColor(cv2.imread(file_path), cv2.COLOR_BGR2RGB)
 

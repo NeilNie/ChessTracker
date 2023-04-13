@@ -7,19 +7,21 @@ def detect_checker_board_corners(image):
 
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-    ret, corners = cv2.findChessboardCorners(gray, (7, 7), None)
+    gray_corners = cv2.goodFeaturesToTrack(gray, 100, 0.5, 100)
+    corners_array = np.int0(gray_corners)
 
-    # if chessboard corners are detected
-    if ret == True:
+    print(corners_array)
+    # Display the corners found int he image
+
+    for i in corners_array:
+        x, y = i.ravel()
+        cv2.circle(image, (x, y), 10, [0, 255, 255], -1)
     
-        # Draw and display the corners
-        img = cv2.drawChessboardCorners(image, (7,7), corners, ret)
-        # cv2.imshow('Chessboard',img)
-        plt.imshow(img)
-        plt.show()
-        
-        return corners
-    return None
+    plt.imshow(image)
+    plt.show()        
+
+    return corners_array
+
 
 def segment_image_with_corners(image, corners):
     pass
