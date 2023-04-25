@@ -10,21 +10,48 @@ np.set_printoptions(suppress=True)  # Better printing of arrays
 plt.rcParams["image.cmap"] = "jet"  # Default colormap is jet
 
 
-def find_corners(lines, lines_a, lines_b):
-    
+def find_intersections(vertical, horizontal, size):
+
     intersections = []
-    for k in lines_a:
-        line = lines[k, :]
-        x1, y1, x2, y2 = line
-        
-        for j in lines_b:
-            line2 = lines[j, :]
-            x_1, y_1, x_2, y_2 = line2
-            
+    for k in vertical:
+        x1, y1, x2, y2 = k
+        ls = []
+        for j in horizontal:
+            x_1, y_1, x_2, y_2 = j
             intersect = line_intersection(
                 [[x1, y1], [x2, y2]], [[x_1, y_1], [x_2, y_2]])
-            intersections.append(intersect)
+            # if size[0] > intersect[0] >= 0 and size[1] > intersect[1] >= 0:
+            ls.append(intersect)
+
+        if len(ls) > 0:
+            intersections.append(ls)
     return intersections
+
+
+def find_points_on_boarder_line(intersections, boarders):
+
+    points = np.argwhere(boarders == 0)
+    tmp = points[:, 0].copy()
+    points[:, 0] = points[:, 1].copy()
+    points[:, 1] = tmp
+
+    line_array = []
+
+    for intersection in intersections:
+        valid = []
+        for point in intersection:
+            print(np.amin(np.linalg.norm(np.array(point) - points, axis=1)), end=" ")
+            if np.amin(np.linalg.norm(np.array(point) - points, axis=1)) < 10:
+                # valid.append(np.amin(np.linalg.norm(np.array(point) - points, axis=1)))
+                valid.append(point)
+        if len(valid) == 9:
+            line_array.append(valid)
+    
+    assert(len(line_array) == 2)
+    if np.mean(np.array(line_array[0])[:, 0]) < np.mean(np.array(line_array[1])[:, 0]):
+        return line_array
+    else:
+        return [np.array(line_array[1]), np.array(line_array[0])]
 
 
 def run_sobel_filters(img):
@@ -149,7 +176,19 @@ def angleClose(a, b, angle_threshold=10 * np.pi / 180):
     return d < angle_threshold or np.abs(2 * np.pi - d) < angle_threshold
 
 
-def segmentAngles(freqs, angles, good_mask, angle_threshold=10 * np.pi / 180):
+def angle_gap(x, y):
+    return np.arctan2(np.sin(x-y), np.cos(x-y))
+
+def intersect_in_bounds(line1, line2, img_size):
+    x, y = line_intersection(line1, line2)
+    if 0 <= x < img_size[1] and 0 <= y < img_size[0]:
+        return True
+    return False
+
+
+def segmentAngles(lines, angles, good_mask, img_size, 
+                  intersection=False, angle_threshold=10 * np.pi / 180):
+
     # Partition lines based on similar angles int segments/groups
     segment_mask = np.zeros(angles.shape, dtype=int)
 
@@ -167,6 +206,8 @@ def segmentAngles(freqs, angles, good_mask, angle_threshold=10 * np.pi / 180):
                 good_mask[j]
                 and segment_mask[j] == 0
                 and angleClose(angles[i], angles[j], angle_threshold)
+                and (intersection and intersect_in_bounds(
+                    lines[i].reshape(2, 2), lines[j].reshape(2, 2), img_size))
             ):
                 segment_mask[j] = segment_idx
         # Iterate to next group
@@ -174,20 +215,67 @@ def segmentAngles(freqs, angles, good_mask, angle_threshold=10 * np.pi / 180):
     return segment_mask, segment_idx  # segments and segment count
 
 
-def chooseBestSegments(segments, num_segments, line_mags):
+def group_lines(lines, angles, img_size, line_mags, angle_threshold=10 * np.pi / 180):
+
+    # Partition lines based on similar angles int segments/groups
+    groups = [[i] for i in range(len(lines))]
+
+    for i in range(len(angles)):
+
+        # Create new group
+        for j in range(len(angles)):
+            # If good line, not yet grouped, and is close in angle, add to segment group
+            if (
+                angleClose(angles[i], angles[j], angle_threshold)
+                and intersect_in_bounds(
+                    lines[i].reshape(2, 2), lines[j].reshape(2, 2), img_size)
+            ):
+                groups[i].append(j)
+        groups[i] = tuple(groups[i])
+        # Iterate to next group
+
+    groups = set(groups)
+    good_lines = []
+    good_angles = []
+    for i, g in enumerate(groups):
+        sum = np.zeros((2, 2))
+        for a in g:
+            sum += np.array(lines[a]).reshape(2, 2)
+        sum /= len(g)
+        good_lines.append(sum.flatten())
+        good_angles.append(np.average(np.array(angles)[list(g)]))
+
+    # separate vertical and horizontal
+    horizontal = []
+    vertical = []
+    for i, angle in enumerate(good_angles):
+        if abs(angle_gap(angle, np.pi/2)) < 20 * np.pi / 180:
+            horizontal.append(good_lines[i])
+        else:
+            vertical.append(good_lines[i])
+
+    return vertical, horizontal  # segments and segment count
+
+
+def chooseBestSegments(segments, num_segments, line_mags, top=2):
+    print(segments)
     segment_mags = np.zeros(num_segments)
     for i in range(1, num_segments):
-        if np.sum(segments == i) < 4:
-            # Need at least 4 lines in a segment
-            segment_mags[i] = 0
-        else:
-            # Get average line gradient magnitude for that segment
-            segment_mags[i] = np.sum(
+        
+        segment_mags[i] = np.sum(
                 line_mags[: segments.size][segments == i]
             ) / np.sum(segments == i)
+        
+        # if np.sum(segments == i) < 2:
+        #     # Need at least 4 lines in a segment
+        #     segment_mags[i] = 0
+        # else:
+        #     # Get average line gradient magnitude for that segment
 
+    # import pdb; pdb.set_trace()
+    # print(segment_mags)
     order = np.argsort(segment_mags)[::-1]
-    return order[:2]
+    return order[:top]
 
 
 def getHoughLines(peaks, thetas, rhos, img_shape):
@@ -248,12 +336,12 @@ def getHoughLines(peaks, thetas, rhos, img_shape):
     return lines
 
 
-def find_interior_lines(lines, n_peaks, peak_mags, sobelx, sobely):
+def find_interior_lines(lines, n_peaks, peak_mags, img_size, sobelx, sobely):
     # k = 8
     freqs = np.zeros(n_peaks, dtype=int)
     angles = np.zeros(n_peaks)
 
-    freq_threshold = 2
+    freq_threshold = 0
 
     # for k in [7, 8, 32]:
     # for k in [21]:
@@ -263,20 +351,11 @@ def find_interior_lines(lines, n_peaks, peak_mags, sobelx, sobely):
         freq, line_grad, fft_result, line_angle = getLineGradients(line, sobelx, sobely)
         freqs[k] = freq
         angles[k] = line_angle
-        # print(freq)
-        if freq > freq_threshold:
+        if freq >= freq_threshold:
             good_mask[k] = True
+    
+    vertical, horizontal = group_lines(
+        lines, angles=angles, img_size=img_size, line_mags=peak_mags)
 
-    segments, num_segments = segmentAngles(
-        freqs, angles, good_mask, angle_threshold=20 * np.pi / 180
-    )
-    top_two_segments = chooseBestSegments(segments, num_segments, peak_mags)
-
-    # Update good_mask to only include top two groups
-    a_segment = segments == top_two_segments[0]
-    b_segment = segments == top_two_segments[1]
-    good_mask = a_segment | b_segment
-
-    a_segment_first_7 = np.argwhere(a_segment)[:20].flatten()
-    b_segment_first_7 = np.argwhere(b_segment)[:20].flatten()
-    return a_segment_first_7, b_segment_first_7
+    # print(good_lines)
+    return vertical, horizontal

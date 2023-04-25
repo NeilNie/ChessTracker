@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 
 
 def line_intersection(line1, line2):
@@ -10,7 +11,7 @@ def line_intersection(line1, line2):
 
     div = det(xdiff, ydiff)
     if div == 0:
-        return 0, 0
+        return -1, -1
         # raise Exception('lines do not intersect')
 
     d = (det(*line1), det(*line2))
@@ -27,3 +28,14 @@ def find_bounding_box(points):
     # points = np.abs(uleft[1] - points[:, 1]
     # print([uleft, lright lleft, uright])
     return [uleft, lright] # , lleft, uright
+
+
+def get_smooth_grayscale_image(img):
+    gray = img.copy()
+    gray[gray <= 50] = 0
+    gray[gray > 50] = 255
+    kernel = np.ones((2, 2), np.uint8)
+    gray = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel, iterations=1)
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    gray[gray < 255] = 0
+    return gray
