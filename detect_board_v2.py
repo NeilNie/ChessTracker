@@ -10,7 +10,57 @@ np.set_printoptions(suppress=True)  # Better printing of arrays
 plt.rcParams["image.cmap"] = "jet"  # Default colormap is jet
 
 
-def find_intersections(vertical, horizontal, size):
+def find_chess_board_points(img):
+
+    img_height, img_width = img.shape
+    grad_phase_masked, grad_mag, sobelx, sobely = run_sobel_filters(img)
+    edges = cv2.Canny(np.uint8(img), 50, 150, apertureSize=3)
+
+    h2, thetas, rhos = informed_hough(
+        edges,
+        grad_phase_masked,
+        grad_mag,
+        theta_bin_size=2 * 360,
+        rho_bin_size=2 * 360,
+        inform_range=8,
+    )
+
+    input_h = h2.copy()
+    # Generate peak image
+    is_peak = getLocalMaxArray(input_h, winsize=11)
+    local_max_img = input_h.copy()
+    local_max_img[~is_peak] = 0  # Set peaks with intensity of peak
+
+
+    # local_max_img[local_max_img<100000] = 0
+    peaks = np.argwhere(local_max_img)
+
+    peak_mags = local_max_img[peaks[:, 0], peaks[:, 1]]
+    peak_order = np.argsort(peak_mags)[::-1]  # Strongest to weakest
+
+    # Sort peaks by strength
+    peaks = peaks[peak_order, :]
+    peak_mags = peak_mags[peak_order]
+
+    # Only want peaks that are within half a standard deviation of the mean
+    threshold_good_peak = peak_mags.mean() + peak_mags.std() / 2
+    n_good_peaks = peaks.shape[0] - np.searchsorted(peak_mags[::-1], threshold_good_peak)
+
+    n_peaks = min(n_good_peaks, 100)
+
+    # =========== find all lines ======== #
+    lines = getHoughLines(peaks[:n_peaks], thetas, rhos, img.shape)
+
+    # =========== good lines lines ======== #
+    vertical, horizontal = find_good_lines(
+        lines, n_peaks, peak_mags, (img_height, img_width), sobelx, sobely
+    )
+    intersections = find_line_intersections(horizontal, vertical)
+
+    return intersections, (vertical, horizontal)
+
+
+def find_line_intersections(vertical, horizontal):
 
     intersections = []
     for k in vertical:
@@ -24,11 +74,11 @@ def find_intersections(vertical, horizontal, size):
             ls.append(intersect)
 
         if len(ls) > 0:
-            intersections.append(ls)
-    return intersections
+            intersections.append(np.array(ls))
+    return np.array(intersections)
 
 
-def find_points_on_boarder_line(intersections, boarders):
+def find_points_on_boarder(intersections, boarders):
 
     points = np.argwhere(boarders == 0)
     tmp = points[:, 0].copy()
@@ -40,18 +90,24 @@ def find_points_on_boarder_line(intersections, boarders):
     for intersection in intersections:
         valid = []
         for point in intersection:
-            print(np.amin(np.linalg.norm(np.array(point) - points, axis=1)), end=" ")
-            if np.amin(np.linalg.norm(np.array(point) - points, axis=1)) < 10:
-                # valid.append(np.amin(np.linalg.norm(np.array(point) - points, axis=1)))
-                valid.append(point)
-        if len(valid) == 9:
+            # distance to black line must be less than 10 pixels
+            if np.amin(np.linalg.norm(np.array(point) - points, axis=1)) < 5:
+                if len(valid) > 1:
+                    if np.amin(np.linalg.norm(np.array(valid) - np.array(point), axis=1)) > 1:
+                        valid.append(point)
+                else:
+                    valid.append(point)
+        # print(len(valid))
+        if len(valid) >= 9:
             line_array.append(valid)
     
+    # must only be two groups
+    # print(len(line_array))
     assert(len(line_array) == 2)
-    if np.mean(np.array(line_array[0])[:, 0]) < np.mean(np.array(line_array[1])[:, 0]):
-        return line_array
+    if np.mean(np.array(line_array[0])[:, 1]) < np.mean(np.array(line_array[1])[:, 1]):
+        return np.array(line_array)
     else:
-        return [np.array(line_array[1]), np.array(line_array[0])]
+        return np.array([np.array(line_array[1]), np.array(line_array[0])])
 
 
 def run_sobel_filters(img):
@@ -68,7 +124,7 @@ def run_sobel_filters(img):
     return grad_phase_masked, grad_mag, sobelx, sobely
 
 
-def informedHough(
+def informed_hough(
     bin_img,
     gradient_phase_img,
     gradient_magnitude_img,
@@ -163,11 +219,11 @@ def getLineGradients(line, gradient_x, gradient_y, sampling_rate=1):
     normal_gradients = line_normal.dot(gradients)
 
     # Calculate fft, since sampling rate is static, we can just use indices as a comparison method
-    fft_result = np.abs(np.fft.rfft(normal_gradients).real)
+    # fft_result = np.abs(np.fft.rfft(normal_gradients).real)
 
-    strongest_freq = np.argmax(fft_result)
+    # strongest_freq = np.argmax(fft_result)
 
-    return strongest_freq, normal_gradients, fft_result, line_angle
+    return 0, normal_gradients, 0, line_angle
 
 
 def angleClose(a, b, angle_threshold=10 * np.pi / 180):
@@ -249,9 +305,11 @@ def group_lines(lines, angles, img_size, line_mags, angle_threshold=10 * np.pi /
     horizontal = []
     vertical = []
     for i, angle in enumerate(good_angles):
+        if (good_lines[i] < 0).any():
+            continue
         if abs(angle_gap(angle, np.pi/2)) < 20 * np.pi / 180:
             horizontal.append(good_lines[i])
-        else:
+        elif abs(angle_gap(angle, np.pi)) < 20 * np.pi / 180 or abs(angle_gap(angle, 0)) < 20 * np.pi / 180:
             vertical.append(good_lines[i])
 
     return vertical, horizontal  # segments and segment count
@@ -336,20 +394,30 @@ def getHoughLines(peaks, thetas, rhos, img_shape):
     return lines
 
 
-def find_interior_lines(lines, n_peaks, peak_mags, img_size, sobelx, sobely):
-    # k = 8
-    freqs = np.zeros(n_peaks, dtype=int)
+def find_good_lines(lines, n_peaks, peak_mags, img_size, sobelx, sobely):
+    """Find good lines given a list of possible lines
+    from hough
+
+    Args:
+        lines (_type_): _description_
+        n_peaks (_type_): _description_
+        peak_mags (_type_): _description_
+        img_size (_type_): _description_
+        sobelx (_type_): _description_
+        sobely (_type_): _description_
+
+    Returns:
+        tuple: vertical, horizontal lines as lists
+    """
+
     angles = np.zeros(n_peaks)
 
     freq_threshold = 0
 
-    # for k in [7, 8, 32]:
-    # for k in [21]:
-    good_mask = np.zeros(freqs.shape, dtype=bool)
+    good_mask = np.zeros(angles.shape, dtype=bool)
     for k in range(n_peaks):
         line = lines[k, :]
         freq, line_grad, fft_result, line_angle = getLineGradients(line, sobelx, sobely)
-        freqs[k] = freq
         angles[k] = line_angle
         if freq >= freq_threshold:
             good_mask[k] = True
@@ -357,5 +425,4 @@ def find_interior_lines(lines, n_peaks, peak_mags, img_size, sobelx, sobely):
     vertical, horizontal = group_lines(
         lines, angles=angles, img_size=img_size, line_mags=peak_mags)
 
-    # print(good_lines)
     return vertical, horizontal

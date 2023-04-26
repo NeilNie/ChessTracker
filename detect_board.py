@@ -69,17 +69,16 @@ def detect_checker_board_ext_corners(image):
 
 
 
-def distort_chess_board(image):
+def distort_chess_board(image, points):
     h = 1000
     w = 1000
 
     # 4 Points on Original Image
-    pt1 = detect_checker_board_ext_corners(image)
 
     # 4 Corresponding Points of Desired Bird Eye View Image
     pt2 = np.float32([[0,0],[0,h],[w,h],[w,0]])
 
-    matrix = cv2.getPerspectiveTransform(pt1, pt2)
+    matrix = cv2.getPerspectiveTransform(points, pt2)
     output = cv2.warpPerspective(image, matrix, (w,h))
     return output
 

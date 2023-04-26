@@ -23,19 +23,35 @@ def line_intersection(line1, line2):
 def find_bounding_box(points):
 
     points = np.array(points)
-    uleft, lright = points[np.argmin(points[:, 0])], points[np.argmax(points[:, 0])]
+    uleft, lright = points[np.argmin(
+        points[:, 0])], points[np.argmax(points[:, 0])]
 
     # points = np.abs(uleft[1] - points[:, 1]
     # print([uleft, lright lleft, uright])
-    return [uleft, lright] # , lleft, uright
+    return [uleft, lright]  # , lleft, uright
 
 
 def get_smooth_grayscale_image(img):
     gray = img.copy()
-    gray[gray <= 50] = 0
-    gray[gray > 50] = 255
+    gray[gray <= 60] = 0
+    gray[gray > 60] = 255
     kernel = np.ones((2, 2), np.uint8)
     gray = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel, iterations=1)
     gray = cv2.GaussianBlur(gray, (5, 5), 0)
     gray[gray < 255] = 0
     return gray
+
+
+def distort_chess_board(image, points, padding=50):
+    h = 1000 + padding
+    w = 1000 + padding
+
+    # 4 Points on Original Image
+
+    # 4 Corresponding Points of Desired Bird Eye View Image
+    pt2 = np.float32([[padding, padding], [padding, h-padding],
+                      [w-padding, h-padding], [w-padding, padding]])
+
+    matrix = cv2.getPerspectiveTransform(points, pt2)
+    output = cv2.warpPerspective(image, matrix, (w, h))
+    return output, matrix
