@@ -11,8 +11,8 @@ img_size = 1000
 padding = 100
 
 # four boards
-# [81, 82, 85, chess-11, chess-10]
-file_path = "./imgs/IMG_3086.jpeg"
+# [81, 82, 85, 86, 87, chess-11, chess-10]
+file_path = "./imgs/IMG_3336.jpeg" # IMG_3083 up to 101
 img_orig = PIL.Image.open(file_path)
 img_width, img_height = img_orig.size
 print("Image size %dx%d" % (img_width, img_height))
@@ -32,6 +32,8 @@ top_right = line_array[0][np.argmax(line_array[0][:, 0])]
 bottom_left = line_array[1][np.argmin(line_array[1][:, 0])]
 bottom_right = line_array[1][np.argmax(line_array[1][:, 0])]
 corners = [top_left, bottom_left, bottom_right, top_right]
+
+# corners = []
 
 plt.figure(figsize=(10, 10))
 plt.imshow(img, cmap="gray")
@@ -77,14 +79,39 @@ for i, sec in enumerate(transformed):
 
 
 output = segment_chess_pieces(distorted, transformed[0], transformed[1], img_size=img_size, padding=padding)
+print(output.shape)
+count = 1200
+for i in range(output.shape[0]):
+    for j in range(output.shape[1]):
+        img = output[i, j]
+        count += 1
+        cv2.imwrite(f"./empty/{count}.png", img)
 
-knight = [output[1, 0, :, :], 
-          output[6, 0, :, :], 
-          output[3, 5, :, :], 
-          output[-2, 4, :, :]]
-for img in knight:
-    count = len(os.listdir("./dataset/knight/"))
-    cv2.imwrite(f"./dataset/knight/{count}.png", img)
+
+# knight = [output[1, 0, :, :], 
+#           output[-2, 0, :, :], 
+#           output[1, -1, :, :], 
+#           output[-2, -1, :, :]]
+# for img in knight:
+#     count = len(os.listdir("./dataset/knight/"))
+#     cv2.imwrite(f"./dataset/knight/{count}.png", img)
+
+# bishop = [output[2, 0, :, :], 
+#           output[-3, 0, :, :], 
+#           output[2, -1, :, :], 
+#           output[-3, -1, :, :]]
+# for img in bishop:
+#     count = len(os.listdir("./dataset/bishop/"))
+#     cv2.imwrite(f"./dataset/bishop/{count}.png", img)
+
+# castle = [output[0, 0, :, :], 
+#           output[0, -1, :, :], 
+#           output[-1, -1, :, :], 
+#           output[-1, 0, :, :]]
+# for img in castle:
+#     count = len(os.listdir("./dataset/castle/"))
+#     cv2.imwrite(f"./dataset/castle/{count}.png", img)
+
 
 # for img in output[:, 1, :, :]:
 #     count = len(os.listdir("./dataset/pawn/"))

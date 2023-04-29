@@ -91,7 +91,7 @@ def find_points_on_boarder(intersections, boarders):
         valid = []
         for point in intersection:
             # distance to black line must be less than 10 pixels
-            if np.amin(np.linalg.norm(np.array(point) - points, axis=1)) < 5:
+            if np.amin(np.linalg.norm(np.array(point) - points, axis=1)) < 15:
                 if len(valid) > 1:
                     if np.amin(np.linalg.norm(np.array(valid) - np.array(point), axis=1)) > 1:
                         valid.append(point)
@@ -102,7 +102,8 @@ def find_points_on_boarder(intersections, boarders):
             line_array.append(valid)
     
     # must only be two groups
-    # print(len(line_array))
+    print(len(line_array))
+    # return line_array
     assert(len(line_array) == 2)
     if np.mean(np.array(line_array[0])[:, 1]) < np.mean(np.array(line_array[1])[:, 1]):
         return np.array(line_array)
@@ -234,6 +235,7 @@ def angleClose(a, b, angle_threshold=10 * np.pi / 180):
 
 def angle_gap(x, y):
     return np.arctan2(np.sin(x-y), np.cos(x-y))
+
 
 def intersect_in_bounds(line1, line2, img_size):
     x, y = line_intersection(line1, line2)
