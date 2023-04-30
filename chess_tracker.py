@@ -1,10 +1,17 @@
 import cv2
+from enum import IntEnum
 from tensorflow import keras
 from detect_board_v2 import *
-from utils import get_smooth_grayscale_image, distort_chess_board
-from chess_piece_classifier import segment_chess_pieces
+from chessboard import ChessBoard, ChessPiece
+from utils import get_smooth_grayscale_image, distort_chess_board, segment_chess_pieces
 from model.convnet import build_piece_classification_model
-from hand_detector import build_hand_model
+from hand_detector.hand_detector import HandDetector
+
+
+class PieceType(IntEnum):
+    BLACK = 1
+    WHITE = 3
+    EMPTY = 2
 
 
 class ChessTracker():
@@ -12,8 +19,10 @@ class ChessTracker():
     def __init__(self) -> None:
         # self.piece_model = build_piece_classification_model(2)
         self.piece_model = keras.models.load_model('empty_detector')
-        self.type_model = keras.models.load_model('empty_detector')
-        self.hand_model = build_hand_model()
+        self.type_model = keras.models.load_model('type_detector')
+        self.hand_detector = HandDetector("./hand-detector-model")
+        self.board = ChessBoard()
+
         self.corners = None
         self.img_size = 1000
         self.padding = 100
@@ -56,8 +65,15 @@ class ChessTracker():
                 print("failed to grab frame")
                 break
             
+            # check for corners
             if self.corners == None:
                 self.initialize_chess_board(img)
+                continue
+
+            # detect hands
+            has_hand = self.hand_detector.predict(img)
+            if has_hand:
+                print("warning, has hand")
                 continue
 
             img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
@@ -71,44 +87,37 @@ class ChessTracker():
             for i, sec in enumerate(self.line_array):    
                 transformed.append(cv2.perspectiveTransform(np.float32([sec]), transform)[0])
 
-            # fig = plt.figure(figsize=(10, 10))
-            # plt.imshow(distorted, cmap="gray")
-
-            # for i, sec in enumerate(transformed):
-            #     for s in sec:
-            #         plt.text(s[0] + 2, s[1] + 9, "%s" % i, color="white", size=8)
-            #         plt.scatter(s[0], s[1], s=50)
-    
+            # segment the chess pieces into 64 images
             output = segment_chess_pieces(
                 distorted, transformed[0], transformed[1], 
                 img_size=self.img_size, padding=self.padding)
 
+            # run inferences
             state = np.zeros((len(output), len(output)))
             for i in range(len(output)):
                 for j in range(len(output)):
                     input = cv2.resize(np.array(output[i, j]), (100, 100))
                     model_output = self.piece_model(np.expand_dims(input, (0, -1)))
+                    type_output = self.type_model(np.expand_dims(input, (0, -1)))
+                    # print(type_output)
                     # print(model_output, model_output > 0.5)
-                    state[i, j] = model_output > 0.5
+                    state[i, j] = np.argmax(type_output) + 1
 
-            # print(state)
-            # import pdb; pdb.set_trace()
+            # update the board
+            self.board.update_board(state)
+
+            print(state)
+            import pdb; pdb.set_trace()
             # plt.show()
             # plt.imshow(distorted, cmap="gray")
             # plt.show()
             cv2.imshow("image", np.hstack((img, np.uint8(cv2.resize(distorted, (img.shape[0], img.shape[0]))))))
 
-            k = cv2.waitKey(1)
+            k = cv2.waitKey(10)
             if k%256 == 27:
                 # ESC pressed
                 print("Escape hit, closing...")
                 break
-            # elif k%256 == 32:
-            #     # SPACE pressed
-            #     img_name = "opencv_frame_{}.png".format(img_counter)
-            #     cv2.imwrite(img_name, frame)
-            #     print("{} written!".format(img_name))
-            #     img_counter += 1
 
         cam.release()
 

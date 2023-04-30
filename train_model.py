@@ -24,8 +24,7 @@ train_dataset = tf.keras.utils.image_dataset_from_directory(
     shuffle=True,
     batch_size=8,
     color_mode="grayscale",
-    labels=[
-        'empty', 'white', 'black'],
+    # labels=['empty', 'white', 'black'],
     label_mode='categorical',
     image_size=(100, 100))
 validation_dataset = tf.keras.utils.image_dataset_from_directory(
@@ -33,7 +32,7 @@ validation_dataset = tf.keras.utils.image_dataset_from_directory(
     shuffle=True,
     batch_size=2,
     color_mode="grayscale",
-    labels=['empty', 'white', 'black'],
+    # labels=['empty', 'white', 'black'],
     label_mode='categorical',
     image_size=(100, 100))
 
