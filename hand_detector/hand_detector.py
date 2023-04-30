@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-import tf.keras as keras
+from tensorflow import keras
 from PIL import Image
 
 
@@ -11,14 +11,11 @@ class HandDetector:
         self.input_size = input_size
 
     def predict(self, img_arr):
+    
         # first resize
         img = Image.fromarray(img_arr.astype('uint8'), 'RGB')
-
         img = img.resize(self.input_size)
 
-        dataset = tf.data.Dataset.from_tensor_slices([np.array(img)])
+        predict = self.model(np.expand_dims(np.array(img), 0))[0, 0]
 
-        predict = self.model.predict(testing_dataset.batch(1))[0, 0]
-
-        return int(predict > 0)
-
+        return int(predict < 0)
