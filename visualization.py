@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 def visualize_lines(img_orig, lines):
     fig = plt.figure(figsize=(10, 10))
-    plt.imshow(img_orig, cmap="gray")
+    plt.imshow(img_orig)
     plt.axis([0, img_orig.shape[1], img_orig.shape[0], 0])
     for i, [x1, y1, x2, y2] in enumerate(lines):
         # Make first 20 lines strongest
