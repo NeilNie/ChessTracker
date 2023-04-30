@@ -26,13 +26,14 @@ class ChessTracker():
         plt.imshow(gray, cmap="gray")
         plt.show()
 
-        line_array = find_points_on_boarder(intersections, gray)
+        self.line_array = find_points_on_boarder(intersections, gray)
 
-        top_left = line_array[0][np.argmin(line_array[0][:, 0])]
-        top_right = line_array[0][np.argmax(line_array[0][:, 0])]
-        bottom_left = line_array[1][np.argmin(line_array[1][:, 0])]
-        bottom_right = line_array[1][np.argmax(line_array[1][:, 0])]
-        self.corners = [top_left, bottom_left, bottom_right, top_right]
+        if self.line_array is not None:
+            top_left = self.line_array[0][np.argmin(self.line_array[0][:, 0])]
+            top_right = self.line_array[0][np.argmax(self.line_array[0][:, 0])]
+            bottom_left = self.line_array[1][np.argmin(self.line_array[1][:, 0])]
+            bottom_right = self.line_array[1][np.argmax(self.line_array[1][:, 0])]
+            self.corners = [top_left, bottom_left, bottom_right, top_right]
 
     def capture_loop(self):
         cam = cv2.VideoCapture(0)
@@ -41,31 +42,39 @@ class ChessTracker():
 
         while True:
             ret, img = cam.read()
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             if not ret:
                 print("failed to grab frame")
                 break
             
+            if self.corners == None:
+                self.initialize_chess_board(img)
+                continue
+
+            # distort the chessboard
             distorted, transform = distort_chess_board(
                 np.float32(img), np.float32(self.corners), padding=100)
 
             # distort the points
             transformed = []
-            for i, sec in enumerate(line_array):    
+            for i, sec in enumerate(self.line_array):    
                 transformed.append(cv2.perspectiveTransform(np.float32([sec]), transform)[0])
 
             fig = plt.figure(figsize=(10, 10))
             plt.imshow(distorted, cmap="gray")
-            plt.show()
 
             for i, sec in enumerate(transformed):
                 for s in sec:
                     plt.text(s[0] + 2, s[1] + 9, "%s" % i, color="white", size=8)
-                    plt.scatter(s[0], s[1], s=50, color=colors[i])
+                    plt.scatter(s[0], s[1], s=50)
 
-            output = segment_chess_pieces(distorted, transformed[0], transformed[1], img_size=img_size, padding=padding)
-            print(output.shape)
-                        
-            cv2.imshow("test", frame)
+            output = segment_chess_pieces(
+                distorted, transformed[0], transformed[1], 
+                img_size=self.img_size, padding=self.padding)
+    
+            plt.show()
+
+            cv2.imshow("test", img)
             k = cv2.waitKey(5)
             if k%256 == 27:
                 # ESC pressed
