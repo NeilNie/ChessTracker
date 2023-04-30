@@ -1,4 +1,5 @@
 import cv2
+from tensorflow import keras
 from detect_board_v2 import *
 from utils import get_smooth_grayscale_image, distort_chess_board
 from chess_piece_classifier import segment_chess_pieces
@@ -9,7 +10,9 @@ from hand_detector import build_hand_model
 class ChessTracker():
     
     def __init__(self) -> None:
-        self.piece_model = build_piece_classification_model(2)
+        # self.piece_model = build_piece_classification_model(2)
+        self.piece_model = keras.models.load_model('empty_detector')
+        self.type_model = keras.models.load_model('empty_detector')
         self.hand_model = build_hand_model()
         self.corners = None
         self.img_size = 1000
@@ -46,7 +49,7 @@ class ChessTracker():
         while True:
             # ret, img = cam.read()            
             ret = True
-            img = cv2.imread("./imgs/chess-11.jpg")
+            img = cv2.imread("./imgs/chess-11.jpg") # IMG_3330.jpeg
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
             if not ret:
@@ -75,15 +78,21 @@ class ChessTracker():
             #     for s in sec:
             #         plt.text(s[0] + 2, s[1] + 9, "%s" % i, color="white", size=8)
             #         plt.scatter(s[0], s[1], s=50)
-
+    
             output = segment_chess_pieces(
                 distorted, transformed[0], transformed[1], 
                 img_size=self.img_size, padding=self.padding)
-    
+
+            state = np.zeros((len(output), len(output)))
             for i in range(len(output)):
                 for j in range(len(output)):
-                    output[i, j] = None
-    
+                    input = cv2.resize(np.array(output[i, j]), (100, 100))
+                    model_output = self.piece_model(np.expand_dims(input, (0, -1)))
+                    # print(model_output, model_output > 0.5)
+                    state[i, j] = model_output > 0.5
+
+            # print(state)
+            # import pdb; pdb.set_trace()
             # plt.show()
             # plt.imshow(distorted, cmap="gray")
             # plt.show()
