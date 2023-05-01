@@ -22,7 +22,7 @@ img_gen = tf.keras.preprocessing.image.ImageDataGenerator(
 train_dataset = tf.keras.utils.image_dataset_from_directory(
     "./dataset_3/train",
     shuffle=True,
-    batch_size=8,
+    batch_size=16,
     color_mode="grayscale",
     # labels=['empty', 'white', 'black'],
     label_mode='categorical',
@@ -30,7 +30,7 @@ train_dataset = tf.keras.utils.image_dataset_from_directory(
 validation_dataset = tf.keras.utils.image_dataset_from_directory(
     "./dataset_3/val",
     shuffle=True,
-    batch_size=2,
+    batch_size=1,
     color_mode="grayscale",
     # labels=['empty', 'white', 'black'],
     label_mode='categorical',
@@ -50,11 +50,11 @@ print(len(train_dataset), train_dataset.class_names)
 model = build_piece_classification_model(3)
 model.summary()
 
-model.compile(optimizer=optimizers.Adam(learning_rate=0.000020),
+model.compile(optimizer=optimizers.Adam(learning_rate=0.000025),
               loss=tf.keras.losses.CategoricalCrossentropy(from_logits=False),
               metrics=['accuracy'])
 
-history = model.fit(train_dataset, epochs=60,
+history = model.fit(train_dataset, epochs=70,
                     validation_data=validation_dataset)
 
 model.save("type_detector", save_format='h5')

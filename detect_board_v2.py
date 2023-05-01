@@ -4,7 +4,8 @@ import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import scipy.ndimage
 from utils import line_intersection
-import cv2  # For Sobel etc
+import cv2
+from visualization import visualize_hough, visualize_lines
 
 np.set_printoptions(suppress=True)  # Better printing of arrays
 plt.rcParams["image.cmap"] = "jet"  # Default colormap is jet
@@ -50,6 +51,7 @@ def find_chess_board_points(img):
 
     # =========== find all lines ======== #
     lines = getHoughLines(peaks[:n_peaks], thetas, rhos, img.shape)
+    # visualize_lines(img, lines)
 
     # =========== good lines lines ======== #
     vertical, horizontal = find_good_lines(
@@ -98,13 +100,12 @@ def find_points_on_boarder(intersections, boarders):
                 else:
                     valid.append(point)
         # print(len(valid))
-        if len(valid) >= 9:
+        if len(valid) == 9:
             line_array.append(valid)
-    
+
     # must only be two groups
-    print(len(line_array))
-    # return line_array
-    assert(len(line_array) == 2)
+    if len(line_array) != 2:
+        return None
     if np.mean(np.array(line_array[0])[:, 1]) < np.mean(np.array(line_array[1])[:, 1]):
         return np.array(line_array)
     else:
@@ -421,6 +422,7 @@ def find_good_lines(lines, n_peaks, peak_mags, img_size, sobelx, sobely):
         line = lines[k, :]
         freq, line_grad, fft_result, line_angle = getLineGradients(line, sobelx, sobely)
         angles[k] = line_angle
+        # print(freq)
         if freq >= freq_threshold:
             good_mask[k] = True
     

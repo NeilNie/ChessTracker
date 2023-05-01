@@ -11,7 +11,7 @@ fig, axs = plt.subplots(8, 8, figsize=(8, 8))
 plt.subplots_adjust(wspace=0, hspace=0)
 
 piece_to_unicode = {
-    Stockfish.Piece.WHITE_KING:     '\u2654', 
+    Stockfish.Piece.WHITE_KING:     '\u2654',
     Stockfish.Piece.WHITE_QUEEN:    '\u2655',
     Stockfish.Piece.WHITE_ROOK:     '\u2656',
     Stockfish.Piece.WHITE_BISHOP:   '\u2657',
@@ -24,15 +24,15 @@ piece_to_unicode = {
     Stockfish.Piece.BLACK_KNIGHT:   '\u265e',
     Stockfish.Piece.BLACK_PAWN:     '\u265f',
     None:                           ''
-    
 }
 
-stockfish = Stockfish(path="C:\\Users\\jjpla\\Downloads\\stockfish_15.1_win_x64_avx2\\stockfish_15.1_win_x64_avx2\\stockfish-windows-2022-x86-64-avx2.exe")
+stockfish = Stockfish(
+    path="C:\\Users\\jjpla\\Downloads\\stockfish_15.1_win_x64_avx2\\stockfish_15.1_win_x64_avx2\\stockfish-windows-2022-x86-64-avx2.exe")
 
-    
+
 def redraw_board(a):
     print("run!", a)
-    
+
     for i in range(64):
         x = i % 8
         y = i // 8
@@ -44,18 +44,16 @@ def redraw_board(a):
         else:
             axs[y, x].set_facecolor("grey")
 
-            
         axs[y, x].xaxis.set_ticks([])
         axs[y, x].yaxis.set_ticks([])
 
         pos = chr(ord('a') + y) + str(x + 1)
 
-        axs[y, x].text(.1, .15, piece_to_unicode[stockfish.get_what_is_on_square(pos)], fontsize=50)
+        axs[y, x].text(.1, .15, piece_to_unicode[stockfish.get_what_is_on_square(
+            pos)], fontsize=50)
 
-        
-    
-    
-#Animated_Figure = FuncAnimation(fig, redraw_board, interval=1000)
+
+# Animated_Figure = FuncAnimation(fig, redraw_board, interval=1000)
 redraw_board(1)
 plt.ion()
 plt.pause(2)

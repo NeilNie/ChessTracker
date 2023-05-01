@@ -1,10 +1,9 @@
 from detect_board_v2 import *
-from utils import get_smooth_grayscale_image, distort_chess_board
+from utils import get_smooth_grayscale_image, distort_chess_board, segment_chess_pieces
 import numpy as np
 import PIL.Image
 import matplotlib.pyplot as plt
 import cv2  # For Sobel etc
-from chess_piece_classifier import *
 import os
 
 img_size = 1000
@@ -12,26 +11,27 @@ padding = 100
 
 # four boards
 # [81, 82, 85, 86, 87, chess-11, chess-10]
-file_path = "./imgs/IMG_3336.jpeg" # IMG_3083 up to 101
-img_orig = PIL.Image.open(file_path)
-img_width, img_height = img_orig.size
+# file_path = "./imgs/chess-10.jpg" # IMG_3083 up to 101
+# img_orig = PIL.Image.open(file_path)
+# img_width, img_height = img_orig.size
+
+cam = cv2.VideoCapture(0)
+ret, img = cam.read()
+img = img[200:-50, 400:-300]
+img_height, img_width, _ = img.shape
+
 print("Image size %dx%d" % (img_width, img_height))
 
-img = np.array(img_orig.convert("L"))  # grayscale uint8 numpy array
+img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # grayscale uint8 numpy array
 
 intersections, (vertical, horizontal) = find_chess_board_points(img)
 gray = get_smooth_grayscale_image(img)
 
+plt.figure(figsize=(10, 10))
 plt.imshow(gray, cmap="gray")
 plt.show()
 
 line_array = find_points_on_boarder(intersections, gray)
-
-top_left = line_array[0][np.argmin(line_array[0][:, 0])]
-top_right = line_array[0][np.argmax(line_array[0][:, 0])]
-bottom_left = line_array[1][np.argmin(line_array[1][:, 0])]
-bottom_right = line_array[1][np.argmax(line_array[1][:, 0])]
-corners = [top_left, bottom_left, bottom_right, top_right]
 
 # corners = []
 
@@ -56,10 +56,17 @@ for i, sec in enumerate(line_array):
     for s in sec:
         plt.text(s[0] + 2, s[1] + 9, "%s" % i, color="white", size=8)
         plt.scatter(s[0], s[1], s=50, color=colors[i])
-for s in corners:
-    plt.scatter(s[0], s[1], s=100, marker="x")
+# for s in corners:
+#     plt.scatter(s[0], s[1], s=100, marker="x")
 
 plt.show()
+
+top_left = line_array[0][np.argmin(line_array[0][:, 0])]
+top_right = line_array[0][np.argmax(line_array[0][:, 0])]
+bottom_left = line_array[1][np.argmin(line_array[1][:, 0])]
+bottom_right = line_array[1][np.argmax(line_array[1][:, 0])]
+corners = [top_left, bottom_left, bottom_right, top_right]
+
 
 distorted, transform = distort_chess_board(np.float32(img), np.float32(corners), padding=100)
 
@@ -80,7 +87,7 @@ for i, sec in enumerate(transformed):
 
 output = segment_chess_pieces(distorted, transformed[0], transformed[1], img_size=img_size, padding=padding)
 print(output.shape)
-count = 1200
+count = 1900
 for i in range(output.shape[0]):
     for j in range(output.shape[1]):
         img = output[i, j]

@@ -31,11 +31,11 @@ def find_bounding_box(points):
     return [uleft, lright]  # , lleft, uright
 
 
-def get_smooth_grayscale_image(img):
+def get_smooth_grayscale_image(img, threshold=40):
     gray = img.copy()
-    gray[gray <= 60] = 0
-    gray[gray > 60] = 255
-    kernel = np.ones((2, 2), np.uint8)
+    gray[gray <= threshold] = 0
+    gray[gray > threshold] = 255
+    kernel = np.ones((3, 3), np.uint8)
     gray = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel, iterations=1)
     gray = cv2.GaussianBlur(gray, (5, 5), 0)
     gray[gray < 255] = 0

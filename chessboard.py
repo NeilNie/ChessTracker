@@ -1,5 +1,6 @@
 from enum import IntEnum
 import numpy as np
+import time
 
 
 class ChessPiece(IntEnum):
@@ -42,11 +43,40 @@ class ChessBoard():
         print("KING = 1\nCASTLE = 2\nBISHOP = 3\nQUEEN = 4\nPAWN = 5\nKNIGHT = 6")
         print("Initial Board State")
         print(self.board)
+        
+        self.prev_time = None
 
     def update_board(self, array):
-        binary = self.board > 0
-        diff = np.sum(binary - array)
-        if diff > 0:
-            # print(array)
-            where = np.argwhere(diff > 1)
+        
+        if self.prev_time is None:
+            self.prev_time = time.time()
+            return
+        else:
+            if time.time() - self.prev_time < 3:
+                return
+
+        self.prev_time = time.time()
+        
+        binary = (self.board > 0).astype(np.int8)
+        binary_current = (np.abs(array - 2) > 0).astype(np.int8)
+        diff = np.sum(np.abs(binary - binary_current))
+
+        print(array)
+
+        if diff == 2:
+            
+            where = np.argwhere(np.abs(binary - binary_current) == 1)
+
+            if array[where[0][0], where[0][1]] == 2:
+                temp = self.board[where[1][0], where[1][1]]
+                self.board[where[0][0], where[0][1]] = temp
+                self.board[where[1][0], where[1][1]] = 0
+            elif array[where[1][0], where[1][1]] == 2:
+                temp = self.board[where[0][0], where[0][1]]
+                self.board[where[1][0], where[1][1]] = temp
+                self.board[where[0][0], where[0][1]] = 0
+                
+            import pdb; pdb.set_trace()
+
+            print(len(where))
             print(where)
