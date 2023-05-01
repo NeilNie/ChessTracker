@@ -1,59 +1,145 @@
 from enum import IntEnum
 import numpy as np
 import time
+from stockfish import Stockfish
+import matplotlib.pyplot as plt
 
 
 class ChessPiece(IntEnum):
-    KING = 1
-    CASTLE = 2
-    BISHOP = 3
-    QUEEN = 4
-    PAWN = 5
-    KNIGHT = 6
+    EMPTY = 0
+    W_KING = 1
+    W_CASTLE = 2
+    W_BISHOP = 3
+    W_QUEEN = 4
+    W_PAWN = 5
+    W_KNIGHT = 6
+    
+    B_KING = 7
+    B_CASTLE = 8
+    B_BISHOP = 9
+    B_QUEEN = 10
+    B_PAWN = 11
+    B_KNIGHT = 12
 
+rows = "abcdefgh"
+columns = "12345678"
+
+piece_to_unicode = {
+    Stockfish.Piece.WHITE_KING:     '\u2654',
+    Stockfish.Piece.WHITE_QUEEN:    '\u2655',
+    Stockfish.Piece.WHITE_ROOK:     '\u2656',
+    Stockfish.Piece.WHITE_BISHOP:   '\u2657',
+    Stockfish.Piece.WHITE_KNIGHT:   '\u2658',
+    Stockfish.Piece.WHITE_PAWN:     '\u2659',
+    Stockfish.Piece.BLACK_KING:     '\u265a',
+    Stockfish.Piece.BLACK_QUEEN:    '\u265b',
+    Stockfish.Piece.BLACK_ROOK:     '\u265c',
+    Stockfish.Piece.BLACK_BISHOP:   '\u265d',
+    Stockfish.Piece.BLACK_KNIGHT:   '\u265e',
+    Stockfish.Piece.BLACK_PAWN:     '\u265f',
+    None:                           ''
+}
+
+custom_piece_to_unicode = {
+    ChessPiece.W_KING:     '\u2654',
+    ChessPiece.W_QUEEN:    '\u2655',
+    ChessPiece.W_CASTLE:   '\u2656',
+    ChessPiece.W_BISHOP:   '\u2657',
+    ChessPiece.W_KNIGHT:   '\u2658',
+    ChessPiece.W_PAWN:     '\u2659',
+    ChessPiece.B_KING:     '\u265a',
+    ChessPiece.B_QUEEN:    '\u265b',
+    ChessPiece.B_CASTLE:   '\u265c',
+    ChessPiece.B_BISHOP:   '\u265d',
+    ChessPiece.B_KNIGHT:   '\u265e',
+    ChessPiece.B_PAWN:     '\u265f',
+    ChessPiece.EMPTY:      ''
+}
 
 class ChessBoard():
 
-    def __init__(self) -> None:
+    def __init__(self, path="/opt/homebrew/bin/stockfish") -> None:
         self.board = np.zeros((8, 8))
-        self.board[:, 1] = ChessPiece.PAWN
-        self.board[:, -2] = ChessPiece.PAWN
+        self.board[:, 1] = ChessPiece.W_PAWN
+        self.board[:, -2] = ChessPiece.B_PAWN
 
-        self.board[0, 0] = ChessPiece.CASTLE
-        self.board[-1, -1] = ChessPiece.CASTLE
-        self.board[-1, 0] = ChessPiece.CASTLE
-        self.board[0, -1] = ChessPiece.CASTLE
+        self.board[0, 0] = ChessPiece.W_CASTLE
+        self.board[-1, -1] = ChessPiece.B_CASTLE
+        self.board[-1, 0] = ChessPiece.W_CASTLE
+        self.board[0, -1] = ChessPiece.B_CASTLE
 
-        self.board[1, 0] = ChessPiece.KNIGHT
-        self.board[-2, 0] = ChessPiece.KNIGHT
-        self.board[1, -1] = ChessPiece.KNIGHT
-        self.board[-2, -1] = ChessPiece.KNIGHT
+        self.board[1, 0] = ChessPiece.W_KNIGHT
+        self.board[-2, 0] = ChessPiece.W_KNIGHT
+        self.board[1, -1] = ChessPiece.B_KNIGHT
+        self.board[-2, -1] = ChessPiece.B_KNIGHT
         
-        self.board[2, 0] = ChessPiece.BISHOP
-        self.board[-3, 0] = ChessPiece.BISHOP
-        self.board[2, -1] = ChessPiece.BISHOP
-        self.board[-3, -1] = ChessPiece.BISHOP
+        self.board[2, 0] = ChessPiece.W_BISHOP
+        self.board[-3, 0] = ChessPiece.W_BISHOP
+        self.board[2, -1] = ChessPiece.B_BISHOP
+        self.board[-3, -1] = ChessPiece.B_BISHOP
         
-        self.board[3, 0] = ChessPiece.QUEEN
-        self.board[4, 0] = ChessPiece.KING
+        self.board[3, 0] = ChessPiece.W_QUEEN
+        self.board[4, 0] = ChessPiece.W_KING
 
-        self.board[3, -1] = ChessPiece.KING
-        self.board[4, -1] = ChessPiece.QUEEN
+        self.board[3, -1] = ChessPiece.B_KING
+        self.board[4, -1] = ChessPiece.B_QUEEN
 
         print("KING = 1\nCASTLE = 2\nBISHOP = 3\nQUEEN = 4\nPAWN = 5\nKNIGHT = 6")
         print("Initial Board State")
         print(self.board)
+
+        self.stockfish = Stockfish(path=path)
         
         self.prev_time = None
+
+    def make_move(self, move):
+        print(move)
+        try:
+            self.stockfish.make_moves_from_current_position([move])
+        except ValueError:
+            print("value ocurred")
+        self.redraw_board()
+
+    def initialize_board_gui(self):
+        print("initializing gui")
+        self.fig, self.axs = plt.subplots(8, 8, figsize=(8, 8))
+        plt.subplots_adjust(wspace=0, hspace=0)
+        self.redraw_board()
+        plt.ion()
+        plt.show()
+
+    def redraw_board(self):
+
+        for i in range(64):
+            x = i % 8
+            y = i // 8
+
+            self.axs[y, x].clear()
+
+            if (i + y) % 2 == 0:
+                self.axs[y, x].set_facecolor("white")
+            else:
+                self.axs[y, x].set_facecolor("grey")
+
+            self.axs[y, x].xaxis.set_ticks([])
+            self.axs[y, x].yaxis.set_ticks([])
+
+            pos = chr(ord('a') + y) + str(x + 1)
+
+            piece = ChessPiece(int(self.board[y, x]))
+            self.axs[y, x].text(.1, .15, custom_piece_to_unicode[piece], fontsize=50)
+
+            # self.axs[y, x].text(.1, .15, piece_to_unicode[self.stockfish.get_what_is_on_square(
+            #     pos)], fontsize=50)
 
     def update_board(self, array):
         
         if self.prev_time is None:
             self.prev_time = time.time()
-            return
+            return None
         else:
             if time.time() - self.prev_time < 3:
-                return
+                return None
 
         self.prev_time = time.time()
         
@@ -61,22 +147,25 @@ class ChessBoard():
         binary_current = (np.abs(array - 2) > 0).astype(np.int8)
         diff = np.sum(np.abs(binary - binary_current))
 
-        print(array)
+        print(array, diff)
 
         if diff == 2:
-            
+
             where = np.argwhere(np.abs(binary - binary_current) == 1)
 
-            if array[where[0][0], where[0][1]] == 2:
+            if array[where[1][0], where[1][1]] == 2:
                 temp = self.board[where[1][0], where[1][1]]
                 self.board[where[0][0], where[0][1]] = temp
                 self.board[where[1][0], where[1][1]] = 0
-            elif array[where[1][0], where[1][1]] == 2:
+                
+                move = rows[where[0][0]] + columns[where[0][1]] + rows[where[1][0]] + columns[where[1][1]]
+                
+            elif array[where[0][0], where[0][1]] == 2:
                 temp = self.board[where[0][0], where[0][1]]
                 self.board[where[1][0], where[1][1]] = temp
                 self.board[where[0][0], where[0][1]] = 0
-                
-            import pdb; pdb.set_trace()
 
-            print(len(where))
-            print(where)
+                move = rows[where[1][0]] + columns[where[1][1]] + rows[where[0][0]] + columns[where[0][1]]
+
+            self.make_move(move)
+            return move

@@ -15,7 +15,7 @@ class PieceType(IntEnum):
 
 
 class ChessTracker():
-    
+
     def __init__(self) -> None:
         # self.piece_model = build_piece_classification_model(2)
         self.piece_model = keras.models.load_model('empty_detector')
@@ -32,22 +32,10 @@ class ChessTracker():
         img_height, img_width, _ = img_orig.shape
         print("Image size %dx%d" % (img_width, img_height))
 
-        img = np.array(cv2.cvtColor(img_orig, cv2.COLOR_RGB2GRAY))  # grayscale uint8 numpy array
+        # grayscale uint8 numpy array
+        img = np.array(cv2.cvtColor(img_orig, cv2.COLOR_RGB2GRAY))
 
         intersections, (vertical, horizontal) = find_chess_board_points(img)
-        
-        # for sec in intersections:
-        #     max_y, min_y = np.amax(np.array(sec)[:, 1]), np.amin(np.array(sec)[:, 1])
-        #     max_x, min_x = np.amax(np.array(sec)[:, 0]), np.amin(np.array(sec)[:, 0])
-
-        #     line = np.sum(img[int(min_y-10): int(max_y+10), int(min_x): int(max_x)], axis=0)
-            
-        #     fft_result = np.abs(np.fft.rfft(line).real)
-        #     strongest_freq = np.argmax(fft_result)
-        #     # print(strongest_freq)
-        #     plt.plot(line)
-
-        # plt.show()
 
         gray = get_smooth_grayscale_image(img)
 
@@ -70,23 +58,30 @@ class ChessTracker():
             plt.text(x1 + 2, y1 + 9, "%s" % i, color="white", size=8)
 
         # intersections = find_bounding_box(intersections)
-        # colors = 'krgbykrcmykrgbykcmyk'
-        # for i, sec in enumerate(self.line_array):
-        #     for s in sec:
-        #         plt.text(s[0] + 2, s[1] + 9, "%s" % i, color="white", size=8)
-        #         plt.scatter(s[0], s[1], s=50, color=colors[i])
-        # for s in corners:
-        #     plt.scatter(s[0], s[1], s=100, marker="x")
-
-        plt.show()
+        if self.line_array is not None:
+            colors = 'krgbykrcmykrgbykcmyk'
+            for i, sec in enumerate(self.line_array):
+                for s in sec:
+                    plt.text(s[0] + 2, s[1] + 9, "%s" % i, color="white", size=8)
+                    plt.scatter(s[0], s[1], s=50, color=colors[i])
 
         if self.line_array is not None:
             top_left = self.line_array[0][np.argmin(self.line_array[0][:, 0])]
             top_right = self.line_array[0][np.argmax(self.line_array[0][:, 0])]
-            bottom_left = self.line_array[1][np.argmin(self.line_array[1][:, 0])]
-            bottom_right = self.line_array[1][np.argmax(self.line_array[1][:, 0])]
+            bottom_left = self.line_array[1][np.argmin(
+                self.line_array[1][:, 0])]
+            bottom_right = self.line_array[1][np.argmax(
+                self.line_array[1][:, 0])]
             self.corners = [top_left, bottom_left, bottom_right, top_right]
+
+            for s in self.corners:
+                plt.scatter(s[0], s[1], s=100, marker="x")
+            plt.show()
+
             print("found board corners")
+
+            self.board.initialize_board_gui()
+
 
     def infer_board_state(self, output):
         """infer the board state given 64 images of each 
@@ -115,30 +110,36 @@ class ChessTracker():
 
         cv2.namedWindow("chess tracking (made by Neil & Jordan)")
 
+        counter = 0
+
         while True:
-            ret, img = cam.read()
-            img = img[200:-50, 400:-300]
+            ret, img_org = cam.read()
+            
+            # cv2.imwrite(f"./test_run/{counter}.png", img_org)
+            # counter += 1
+            
+            img_org = img_org[200:-50, 400:-300]
 
             # ret = True
             # img = cv2.imread("./imgs/chess-11.jpg") # IMG_3330.jpeg
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img_org = cv2.cvtColor(img_org, cv2.COLOR_BGR2RGB)
 
             if not ret:
                 print("failed to grab frame")
                 break
-            
+
             # check for corners
             if self.corners == None:
-                self.initialize_chess_board(img)
+                self.initialize_chess_board(img_org)
                 continue
 
             # detect hands
-            has_hand = self.hand_detector.predict(img)
+            has_hand = self.hand_detector.predict(img_org)
             if has_hand:
                 print("warning, has hand")
                 continue
 
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+            img = cv2.cvtColor(img_org, cv2.COLOR_RGB2GRAY)
 
             # distort the chessboard
             distorted, transform = distort_chess_board(
@@ -146,12 +147,13 @@ class ChessTracker():
 
             # distort the points
             transformed = []
-            for i, sec in enumerate(self.line_array):    
-                transformed.append(cv2.perspectiveTransform(np.float32([sec]), transform)[0])
+            for i, sec in enumerate(self.line_array):
+                transformed.append(cv2.perspectiveTransform(
+                    np.float32([sec]), transform)[0])
 
             # segment the chess pieces into 64 images
             output = segment_chess_pieces(
-                distorted, transformed[0], transformed[1], 
+                distorted, transformed[0], transformed[1],
                 img_size=self.img_size, padding=self.padding)
 
             # run inferences
@@ -160,10 +162,14 @@ class ChessTracker():
             # update the board
             self.board.update_board(state)
 
-            cv2.imshow("image", np.hstack((img, np.uint8(cv2.resize(distorted, (img.shape[0], img.shape[0]))))))
+            disp_img = np.hstack((cv2.cvtColor(img_org, cv2.COLOR_RGB2BGR),
+                                  cv2.cvtColor(np.uint8(cv2.resize(distorted, (img.shape[0], img.shape[0]))), cv2.COLOR_GRAY2BGR)))
+            disp_img = cv2.resize(disp_img, (int(disp_img.shape[1]*0.5), int(disp_img.shape[0]*0.5)))
+            # cv2.putText(disp_img, "Tracking", (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 10, 255)
+            cv2.imshow("image", disp_img)
 
             k = cv2.waitKey(10)
-            if k%256 == 27:
+            if k % 256 == 27:
                 # ESC pressed
                 print("Escape hit, closing...")
                 break
@@ -171,8 +177,8 @@ class ChessTracker():
         cam.release()
 
         cv2.destroyAllWindows()
-        
-        
+
+
 if __name__ == "__main__":
     tracker = ChessTracker()
     tracker.capture_loop()
