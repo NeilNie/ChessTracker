@@ -26,12 +26,11 @@ piece_to_unicode = {
     None:                           ''
 }
 
-stockfish = Stockfish(
-    path="C:\\Users\\jjpla\\Downloads\\stockfish_15.1_win_x64_avx2\\stockfish_15.1_win_x64_avx2\\stockfish-windows-2022-x86-64-avx2.exe")
+# stockfish = Stockfish(
+#     path="C:\\Users\\jjpla\\Downloads\\stockfish_15.1_win_x64_avx2\\stockfish_15.1_win_x64_avx2\\stockfish-windows-2022-x86-64-avx2.exe")
+stockfish = Stockfish(path="/opt/homebrew/bin/stockfish")
 
-
-def redraw_board(a):
-    print("run!", a)
+def redraw_board():
 
     for i in range(64):
         x = i % 8
