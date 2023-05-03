@@ -38,7 +38,6 @@ class ChessTracker():
         intersections, (vertical, horizontal) = find_chess_board_points(img)
 
         gray = get_smooth_grayscale_image(img)
-
         plt.imshow(gray, cmap="gray")
         plt.show()
 
@@ -118,7 +117,7 @@ class ChessTracker():
             # cv2.imwrite(f"./test_run/{counter}.png", img_org)
             # counter += 1
             
-            img_org = img_org[200:-50, 400:-300]
+            img_org = img_org[300:-50, 400:-300]
 
             # ret = True
             # img = cv2.imread("./imgs/chess-11.jpg") # IMG_3330.jpeg

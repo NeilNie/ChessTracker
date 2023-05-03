@@ -12,7 +12,7 @@ while(True):
     # by frame
     ret, frame = vid.read()
 
-    new_frame = frame[200:-50, 400:-300]
+    new_frame = frame[300:-50, 400:-300]
 
     # Display the resulting frame
     cv2.imshow('frame', new_frame)

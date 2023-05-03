@@ -2,6 +2,7 @@ from enum import IntEnum
 import numpy as np
 import time
 from stockfish import Stockfish
+from controller.controller import board_pos_to_chess
 import matplotlib.pyplot as plt
 
 
@@ -56,6 +57,11 @@ custom_piece_to_unicode = {
     ChessPiece.EMPTY:      ''
 }
 
+
+def chess_coordinate_to_rc(string):
+    return ord(string[0]) - ord("a"), ord(string[-1]) - ord("1")
+
+
 class ChessBoard():
 
     def __init__(self, path="/opt/homebrew/bin/stockfish") -> None:
@@ -88,27 +94,38 @@ class ChessBoard():
         print("Initial Board State")
         print(self.board)
 
-        self.stockfish = Stockfish(path=path)
-        
-        self.prev_time = None
+        self.best_moves = []
 
-    def make_move(self, move):
-        print(move)
-        try:
-            self.stockfish.make_moves_from_current_position([move])
-        except ValueError:
-            print("value ocurred")
-        self.redraw_board()
+        self.stockfish = Stockfish(path=path)
+
+        self.curr_player = True # white
+        self.white_clock = 300
+        self.black_clock = 300
+        self.prev_time = None
 
     def initialize_board_gui(self):
         print("initializing gui")
         self.fig, self.axs = plt.subplots(8, 8, figsize=(8, 8))
         plt.subplots_adjust(wspace=0, hspace=0)
-        self.redraw_board()
+        self.text_box = plt.figtext(0.05, 0.045, "[status]: nominal", 
+                               fontsize=18, va="bottom", ha="left", color="b")
+        self.block_text = plt.figtext(0.05, 0.035, "[clock]: white: -- | black: -- ", 
+                               fontsize=18, va="top", ha="left", color="k")
+        self.redraw_board(True)
         plt.ion()
+        self.fig.suptitle("Welcome to the ChessTracker")
         plt.show()
 
-    def redraw_board(self):
+    def redraw_board(self, valid):
+
+        if not valid:
+            self.text_box.set_text("[status]: invalid move")
+            self.text_box.set_c("r")
+        else:
+            self.text_box.set_text("[status]: nominal")
+            self.text_box.set_c("b")
+
+        self.block_text.set_text(f"[clock]: white: {int(self.white_clock)} | black: {int(self.black_clock)}")
 
         for i in range(64):
             x = i % 8
@@ -116,7 +133,10 @@ class ChessBoard():
 
             self.axs[y, x].clear()
 
-            if (i + y) % 2 == 0:
+            if (y, x) in self.best_moves:
+                print("set face color green")
+                # self.axs[y, x].set_facecolor("green")
+            elif (i + y) % 2 == 0:
                 self.axs[y, x].set_facecolor("white")
             else:
                 self.axs[y, x].set_facecolor("grey")
@@ -126,19 +146,24 @@ class ChessBoard():
 
             pos = chr(ord('a') + y) + str(x + 1)
 
-            piece = ChessPiece(int(self.board[y, x]))
-            self.axs[y, x].text(.1, .15, custom_piece_to_unicode[piece], fontsize=50)
+            # piece = ChessPiece(int(self.board[y, x]))
+            # self.axs[y, x].text(.1, .15, custom_piece_to_unicode[piece], fontsize=50)
 
-            # self.axs[y, x].text(.1, .15, piece_to_unicode[self.stockfish.get_what_is_on_square(
-            #     pos)], fontsize=50)
+            self.axs[y, x].text(.1, .15, piece_to_unicode[self.stockfish.get_what_is_on_square(
+                pos)], fontsize=50)
 
     def update_board(self, array):
-        
+
         if self.prev_time is None:
             self.prev_time = time.time()
             return None
         else:
-            if time.time() - self.prev_time < 3:
+            if self.curr_player:
+                self.white_clock -= time.time() - self.prev_time
+            else:
+                self.black_clock -= time.time() - self.prev_time
+            if time.time() - self.prev_time < 1:
+                self.redraw_board(True)
                 return None
 
         self.prev_time = time.time()
@@ -153,19 +178,35 @@ class ChessBoard():
 
             where = np.argwhere(np.abs(binary - binary_current) == 1)
 
+            print(where)
+
             if array[where[1][0], where[1][1]] == 2:
-                temp = self.board[where[1][0], where[1][1]]
-                self.board[where[0][0], where[0][1]] = temp
-                self.board[where[1][0], where[1][1]] = 0
-                
-                move = rows[where[0][0]] + columns[where[0][1]] + rows[where[1][0]] + columns[where[1][1]]
-                
+                move = board_pos_to_chess(*where[1]) + board_pos_to_chess(*where[0])
             elif array[where[0][0], where[0][1]] == 2:
-                temp = self.board[where[0][0], where[0][1]]
-                self.board[where[1][0], where[1][1]] = temp
-                self.board[where[0][0], where[0][1]] = 0
+                move = board_pos_to_chess(*where[0]) + board_pos_to_chess(*where[1])
 
-                move = rows[where[1][0]] + columns[where[1][1]] + rows[where[0][0]] + columns[where[0][1]]
-
-            self.make_move(move)
+            valid = self.stockfish.is_move_correct(move)
+            if valid:
+                
+                # update the board
+                if array[where[1][0], where[1][1]] == 2:
+                    temp = self.board[where[1][0], where[1][1]]
+                    self.board[where[0][0], where[0][1]] = temp
+                    self.board[where[1][0], where[1][1]] = 0                
+                elif array[where[0][0], where[0][1]] == 2:
+                    temp = self.board[where[0][0], where[0][1]]
+                    self.board[where[1][0], where[1][1]] = temp
+                    self.board[where[0][0], where[0][1]] = 0
+                self.curr_player = not self.curr_player
+                
+                self.stockfish.make_moves_from_current_position([move])
+                move = self.stockfish.get_best_move()
+                print(f"current move: {move}")
+                self.best_moves = [chess_coordinate_to_rc(move[:2]), chess_coordinate_to_rc(move[2:])]
+                # import pdb; pdb.set_trace()
+            else:
+                print("invalid move!")
+            
+            self.redraw_board(valid)
             return move
+

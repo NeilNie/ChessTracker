@@ -8,6 +8,8 @@ from stockfish import Stockfish
 
 fig, axs = plt.subplots(8, 8, figsize=(8, 8))
 
+text_box = plt.figtext(0.05, 0.03, "hello world", fontsize=20, va="bottom", ha="left", color="k")
+
 plt.subplots_adjust(wspace=0, hspace=0)
 
 piece_to_unicode = {
@@ -53,12 +55,12 @@ def redraw_board():
 
 
 # Animated_Figure = FuncAnimation(fig, redraw_board, interval=1000)
-redraw_board(1)
+redraw_board()
 plt.ion()
 plt.pause(2)
 
 print("here!")
 stockfish.make_moves_from_current_position(["a2a4"])
-redraw_board(0)
+redraw_board()
 plt.show()
 plt.pause(2)

@@ -93,7 +93,7 @@ def find_points_on_boarder(intersections, boarders):
         valid = []
         for point in intersection:
             # distance to black line must be less than 10 pixels
-            if np.amin(np.linalg.norm(np.array(point) - points, axis=1)) < 15:
+            if np.amin(np.linalg.norm(np.array(point) - points, axis=1)) < 20:
                 if len(valid) > 1:
                     if np.amin(np.linalg.norm(np.array(valid) - np.array(point), axis=1)) > 1:
                         valid.append(point)
@@ -209,23 +209,23 @@ def getLineGradients(line, gradient_x, gradient_y, sampling_rate=1):
     guessx = np.linspace(ptA[1], ptB[1], num_pts_on_line)
     guessy = np.linspace(ptA[0], ptB[0], num_pts_on_line)
 
-    line_indices = np.floor(np.vstack((guessx, guessy)).T).astype(int)
-    gradients = np.vstack(
-        [
-            gradient_x[line_indices[:, 0], line_indices[:, 1]],
-            gradient_y[line_indices[:, 0], line_indices[:, 1]],
-        ]
-    )
+    # line_indices = np.floor(np.vstack((guessx, guessy)).T).astype(int)
+    # gradients = np.vstack(
+    #     [
+    #         gradient_x[line_indices[:, 0], line_indices[:, 1]],
+    #         gradient_y[line_indices[:, 0], line_indices[:, 1]],
+    #     ]
+    # )
 
-    # Magnitude of gradient along normal
-    normal_gradients = line_normal.dot(gradients)
+    # # Magnitude of gradient along normal
+    # normal_gradients = line_normal.dot(gradients)
 
     # Calculate fft, since sampling rate is static, we can just use indices as a comparison method
     # fft_result = np.abs(np.fft.rfft(normal_gradients).real)
 
     # strongest_freq = np.argmax(fft_result)
 
-    return 0, normal_gradients, 0, line_angle
+    return 0, 0, 0, line_angle
 
 
 def angleClose(a, b, angle_threshold=10 * np.pi / 180):

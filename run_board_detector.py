@@ -87,7 +87,7 @@ for i, sec in enumerate(transformed):
 
 output = segment_chess_pieces(distorted, transformed[0], transformed[1], img_size=img_size, padding=padding)
 print(output.shape)
-count = 1900
+count = 2600
 for i in range(output.shape[0]):
     for j in range(output.shape[1]):
         img = output[i, j]
